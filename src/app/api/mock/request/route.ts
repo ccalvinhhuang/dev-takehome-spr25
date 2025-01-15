@@ -1,4 +1,4 @@
-import { ResponseType } from "@/lib/types/apiResponse";
+import { RESPONSES, ResponseType } from "@/lib/types/apiResponse";
 import {
   createNewMockRequest,
   editMockStatusRequest,
@@ -19,26 +19,29 @@ export async function GET(request: Request) {
     const page = parseInt(url.searchParams.get("page") || "1");
 
     if (isNaN(page) || page < 1) {
-      return new Response(JSON.stringify({ error: "Invalid page number." }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify(RESPONSES[ResponseType.INVALID_INPUT]),
+        {
+          status: RESPONSES[ResponseType.INVALID_INPUT].code,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
     }
+
     const query: any = {};
     if (status) {
       if (!["pending", "completed", "approved", "rejected"].includes(status)) {
         return new Response(
-          JSON.stringify({
-            error: "Has to be one of pending, completed, approved, rejected.",
-          }),
+          JSON.stringify(RESPONSES[ResponseType.INVALID_INPUT]),
           {
-            status: 400,
+            status: RESPONSES[ResponseType.INVALID_INPUT].code,
             headers: { "Content-Type": "application/json" },
           }
         );
       }
       query.status = status;
     }
+
     const skip = (page - 1) * PAGINATION_PAGE_SIZE;
 
     const requests = await Request.find(query)
@@ -58,13 +61,13 @@ export async function GET(request: Request) {
     };
 
     return new Response(JSON.stringify(response), {
-      status: 200,
+      status: RESPONSES[ResponseType.SUCCESS].code,
       headers: { "Content-Type": "application/json" },
     });
   } catch (error) {
     console.error("Error fetching requests:", error);
-    return new Response(JSON.stringify({ error: "Internal server error." }), {
-      status: 500,
+    return new Response(JSON.stringify(RESPONSES[ResponseType.UNKNOWN_ERROR]), {
+      status: RESPONSES[ResponseType.UNKNOWN_ERROR].code,
       headers: { "Content-Type": "application/json" },
     });
   }
@@ -83,11 +86,9 @@ export async function PUT(request: Request) {
       requestorName.length > 30
     ) {
       return new Response(
-        JSON.stringify({
-          error: "'requestorName' input not valid",
-        }),
+        JSON.stringify(RESPONSES[ResponseType.INVALID_INPUT]),
         {
-          status: 400,
+          status: RESPONSES[ResponseType.INVALID_INPUT].code,
           headers: { "Content-Type": "application/json" },
         }
       );
@@ -100,16 +101,14 @@ export async function PUT(request: Request) {
       itemRequested.length > 100
     ) {
       return new Response(
-        JSON.stringify({
-          error:
-            "'itemRequested' must be a string between 2 and 100 characters.",
-        }),
+        JSON.stringify(RESPONSES[ResponseType.INVALID_INPUT]),
         {
-          status: 400,
+          status: RESPONSES[ResponseType.INVALID_INPUT].code,
           headers: { "Content-Type": "application/json" },
         }
       );
     }
+
     const newRequest = new Request({
       requestorName,
       itemRequested,
@@ -120,13 +119,13 @@ export async function PUT(request: Request) {
 
     const savedRequest = await newRequest.save();
     return new Response(JSON.stringify(savedRequest), {
-      status: 201,
+      status: RESPONSES[ResponseType.CREATED].code,
       headers: { "Content-Type": "application/json" },
     });
   } catch (error) {
     console.error("Error creating new request:", error);
-    return new Response(JSON.stringify({ error: "Internal server error." }), {
-      status: 500,
+    return new Response(JSON.stringify(RESPONSES[ResponseType.UNKNOWN_ERROR]), {
+      status: RESPONSES[ResponseType.UNKNOWN_ERROR].code,
       headers: { "Content-Type": "application/json" },
     });
   }
@@ -137,37 +136,39 @@ export async function PATCH(request: Request) {
     await connectDB();
     const { id, status } = await request.json();
 
+    // Validate `id`
     if (!id || typeof id !== "string") {
       return new Response(
-        JSON.stringify({ error: "'id' is required and must be a string." }),
+        JSON.stringify(RESPONSES[ResponseType.INVALID_INPUT]),
         {
-          status: 400,
+          status: RESPONSES[ResponseType.INVALID_INPUT].code,
           headers: { "Content-Type": "application/json" },
         }
       );
     }
 
+    // Validate `status`
     if (
       !status ||
       !["pending", "completed", "approved", "rejected"].includes(status)
     ) {
       return new Response(
-        JSON.stringify({
-          error:
-            "'status' is required and must be one of: pending, completed, approved, rejected.",
-        }),
+        JSON.stringify(RESPONSES[ResponseType.INVALID_INPUT]),
         {
-          status: 400,
+          status: RESPONSES[ResponseType.INVALID_INPUT].code,
           headers: { "Content-Type": "application/json" },
         }
       );
     }
+
+    // Update the request in the database
     const updatedRequest = await Request.findByIdAndUpdate(
       id,
       { status, lastEditedDate: new Date() },
       { new: true }
     );
 
+    // Check if the request exists
     if (!updatedRequest) {
       return new Response(
         JSON.stringify({ error: "Request with the specified ID not found." }),
@@ -177,14 +178,16 @@ export async function PATCH(request: Request) {
         }
       );
     }
+
+    // Return the updated request
     return new Response(JSON.stringify(updatedRequest), {
-      status: 200,
+      status: RESPONSES[ResponseType.SUCCESS].code,
       headers: { "Content-Type": "application/json" },
     });
   } catch (error) {
     console.error("Error updating request:", error);
-    return new Response(JSON.stringify({ error: "Internal server error." }), {
-      status: 500,
+    return new Response(JSON.stringify(RESPONSES[ResponseType.UNKNOWN_ERROR]), {
+      status: RESPONSES[ResponseType.UNKNOWN_ERROR].code,
       headers: { "Content-Type": "application/json" },
     });
   }
