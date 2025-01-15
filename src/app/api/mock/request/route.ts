@@ -14,27 +14,40 @@ const PAGINATION_PAGE_SIZE = 10;
 export async function GET(request: Request) {
   try {
     await connectDB();
-
     const url = new URL(request.url);
+    const status = url.searchParams.get("status");
     const page = parseInt(url.searchParams.get("page") || "1");
 
     if (isNaN(page) || page < 1) {
-      return new Response(
-        JSON.stringify({ error: "Invalid page number. Must be >= 1." }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      return new Response(JSON.stringify({ error: "Invalid page number." }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
     }
-
+    const query: any = {};
+    if (status) {
+      if (!["pending", "completed", "approved", "rejected"].includes(status)) {
+        return new Response(
+          JSON.stringify({
+            error: "Has to be one of pending, completed, approved, rejected.",
+          }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+      query.status = status;
+    }
     const skip = (page - 1) * PAGINATION_PAGE_SIZE;
-    const requests = await Request.find()
+
+    const requests = await Request.find(query)
       .sort({ createdDate: -1 })
       .skip(skip)
       .limit(PAGINATION_PAGE_SIZE);
 
-    const totalRequests = await Request.countDocuments();
+    const totalRequests = await Request.countDocuments(query);
+
     const response = {
       data: requests,
       pagination: {
@@ -49,8 +62,8 @@ export async function GET(request: Request) {
       headers: { "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error("error:", error);
-    return new Response(JSON.stringify({ error: "some weird error." }), {
+    console.error("Error fetching requests:", error);
+    return new Response(JSON.stringify({ error: "Internal server error." }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });
@@ -71,8 +84,7 @@ export async function PUT(request: Request) {
     ) {
       return new Response(
         JSON.stringify({
-          error:
-            "'requestorName' must be a string between 3 and 30 characters.",
+          error: "'requestorName' input not valid",
         }),
         {
           status: 400,
@@ -122,16 +134,58 @@ export async function PUT(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    const req = await request.json();
-    const editedRequest = editMockStatusRequest(req);
-    return new Response(JSON.stringify(editedRequest), {
+    await connectDB();
+    const { id, status } = await request.json();
+
+    if (!id || typeof id !== "string") {
+      return new Response(
+        JSON.stringify({ error: "'id' is required and must be a string." }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    if (
+      !status ||
+      !["pending", "completed", "approved", "rejected"].includes(status)
+    ) {
+      return new Response(
+        JSON.stringify({
+          error:
+            "'status' is required and must be one of: pending, completed, approved, rejected.",
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+    const updatedRequest = await Request.findByIdAndUpdate(
+      id,
+      { status, lastEditedDate: new Date() },
+      { new: true }
+    );
+
+    if (!updatedRequest) {
+      return new Response(
+        JSON.stringify({ error: "Request with the specified ID not found." }),
+        {
+          status: 404,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+    return new Response(JSON.stringify(updatedRequest), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
-  } catch (e) {
-    if (e instanceof InputException) {
-      return new ServerResponseBuilder(ResponseType.INVALID_INPUT).build();
-    }
-    return new ServerResponseBuilder(ResponseType.UNKNOWN_ERROR).build();
+  } catch (error) {
+    console.error("Error updating request:", error);
+    return new Response(JSON.stringify({ error: "Internal server error." }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 }
