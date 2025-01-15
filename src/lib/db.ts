@@ -1,6 +1,14 @@
 import mongoose from "mongoose";
+import dotenv from "dotenv";
 
-const MONGO_URI = "mongodb://127.0.0.1:27017/dev-takehome";
+dotenv.config();
+
+const MONGO_URI: string =
+  process.env.MONGO_URL ||
+  (() => {
+    throw new Error("MONGO_URL not in env variables");
+  })();
+
 const connectDB = async () => {
   try {
     await mongoose.connect(MONGO_URI);
