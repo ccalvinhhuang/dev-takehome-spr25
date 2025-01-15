@@ -9,33 +9,60 @@ import { InputException } from "@/lib/errors/inputExceptions";
 import Request from "./models/Request";
 import connectDB from "@/lib/db";
 
+const PAGINATION_PAGE_SIZE = 10;
+
 export async function GET(request: Request) {
-  const url = new URL(request.url);
-  const status = url.searchParams.get("status");
-  const page = parseInt(url.searchParams.get("page") || "1");
   try {
-    const paginatedRequests = getMockItemRequests(status, page);
-    return new Response(JSON.stringify(paginatedRequests), {
+    await connectDB();
+
+    const url = new URL(request.url);
+    const page = parseInt(url.searchParams.get("page") || "1");
+
+    if (isNaN(page) || page < 1) {
+      return new Response(
+        JSON.stringify({ error: "Invalid page number. Must be >= 1." }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    const skip = (page - 1) * PAGINATION_PAGE_SIZE;
+    const requests = await Request.find()
+      .sort({ createdDate: -1 })
+      .skip(skip)
+      .limit(PAGINATION_PAGE_SIZE);
+
+    const totalRequests = await Request.countDocuments();
+    const response = {
+      data: requests,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(totalRequests / PAGINATION_PAGE_SIZE),
+        totalRequests,
+      },
+    };
+
+    return new Response(JSON.stringify(response), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
-  } catch (e) {
-    if (e instanceof InputException) {
-      return new ServerResponseBuilder(ResponseType.INVALID_INPUT).build();
-    }
-    return new ServerResponseBuilder(ResponseType.UNKNOWN_ERROR).build();
+  } catch (error) {
+    console.error("error:", error);
+    return new Response(JSON.stringify({ error: "some weird error." }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 }
 
 export async function PUT(request: Request) {
   try {
-    // Connect to the database
     await connectDB();
 
-    // Parse the request body
     const { requestorName, itemRequested } = await request.json();
 
-    // Validate the input
     if (
       !requestorName ||
       typeof requestorName !== "string" ||
@@ -71,8 +98,6 @@ export async function PUT(request: Request) {
         }
       );
     }
-
-    // Create a new request document
     const newRequest = new Request({
       requestorName,
       itemRequested,
@@ -81,10 +106,7 @@ export async function PUT(request: Request) {
       status: "pending",
     });
 
-    // Save the document to the database
     const savedRequest = await newRequest.save();
-
-    // Return the created request
     return new Response(JSON.stringify(savedRequest), {
       status: 201,
       headers: { "Content-Type": "application/json" },
