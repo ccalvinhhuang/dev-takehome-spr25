@@ -44,3 +44,6 @@ curl -X PATCH "http://localhost:3000/api/mock/request" \
 "id": "Replace with actual id",
 "status": "rejected"
 }'
+
+ENV File:
+MONGO_URL=mongodb://127.0.0.1:27017/dev-takehome
