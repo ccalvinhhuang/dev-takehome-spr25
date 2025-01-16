@@ -32,12 +32,13 @@
 # Notes
 
 <!-- Notes go here -->
+I accidently edited the routes.ts in the /api/mock/requests for the backend so my code should just be there. I replaced the original routes.ts inside the mock folder. Sorry for the late notice!
 
 PUT, GET, and PATCH all use /api/mock/request...
 
 Test Examples:
-curl -X GET "http://localhost:3000/api/mock/request?status=rejected&page=1"
-curl -X GET "http://localhost:3000/api/request?status=pending&page=1"
+- curl -X GET "http://localhost:3000/api/mock/request?status=rejected&page=1"
+- curl -X GET "http://localhost:3000/api/request?status=pending&page=1"
 curl -X PATCH "http://localhost:3000/api/mock/request" \  
 -H "Content-Type: application/json" \
 -d '{
