@@ -39,7 +39,7 @@ PUT, GET, and PATCH all use /api/mock/request...
 Test Examples:
 - curl -X GET "http://localhost:3000/api/mock/request?status=rejected&page=1"
 - curl -X GET "http://localhost:3000/api/request?status=pending&page=1"
-curl -X PATCH "http://localhost:3000/api/mock/request" \  
+- curl -X PATCH "http://localhost:3000/api/mock/request" \  
 -H "Content-Type: application/json" \
 -d '{
 "id": "Replace with actual id",
